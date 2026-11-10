@@ -95,6 +95,21 @@ body.teacher .tonly{ display:block; }
 .trow .tfill{ height:100%; width:0%; background:var(--brand); transition:width .35s ease; }
 .trow .num{ font-weight:800; font-size:28px; text-align:right; font-variant-numeric:tabular-nums; }
 .tsub{ margin-top:18px; padding:14px 16px; border-radius:14px; background:var(--surface); border:2px dashed var(--line); font-size:17px; }
+.names{ display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 8px; }
+.names[hidden]{ display:none; }
+.names .nm{ padding:3px 11px; border-radius:999px; font-size:16px; font-weight:700; color:var(--ink); background:var(--surface); border:2px solid var(--line); }
+.names .nm.ok{ background:var(--good-bg); border-color:var(--good); }
+.names .nm.ng{ background:var(--bad-bg); border-color:var(--bad); }
+.names .nm.no{ background:var(--warn-bg); border-color:var(--warn); }
+body.teacher #nameBtn{ display:none; }
+#nameBtn{ margin-left:auto; min-height:40px; padding:6px 14px; font-size:15px; }
+.gate{ position:fixed; inset:0; z-index:50; background:rgba(8,24,34,.74); display:flex; align-items:center; justify-content:center; padding:16px; }
+.gate[hidden]{ display:none; }
+.gate .card{ background:var(--surface); color:var(--ink); border:3px solid var(--brand); border-radius:20px; padding:22px; width:min(440px,100%); }
+.gate h2{ margin:0 0 6px; font-size:24px; }
+.gate p{ margin:0 0 14px; color:var(--muted); font-size:16px; }
+.gate input{ font:inherit; font-size:20px; width:100%; min-height:52px; padding:8px 14px; border-radius:14px; border:2px solid var(--line); background:var(--bg); color:var(--ink); }
+.gate .err{ min-height:1.4em; margin:6px 0 0; color:var(--bad); font-size:15px; font-weight:700; }
 @media (max-width:700px){
   .ttabs{ grid-template-columns:repeat(2,1fr); }
   .trow{ grid-template-columns:110px 1fr 52px; }
@@ -223,6 +238,7 @@ body.teacher .tonly{ display:block; }
       <p class="sub">3학년 과학 5차시. 높은 소리와 낮은 소리를 만들어 비교해요.</p>
     </div>
     <a id="zepTop" class="btn ghost zep" hidden target="_blank" rel="noopener noreferrer">AI 도우미 퀴즈 열기</a>
+    <button id="nameBtn" class="btn ghost" type="button" hidden></button>
   </header>
 
   <div class="fb warn audiowarn" id="syncWarn" hidden role="status">집계에 전송하지 못했어요. 선생님께 알려 주세요.</div>
@@ -363,6 +379,20 @@ body.teacher .tonly{ display:block; }
     </section>
   </main>
 
+</div>
+
+<div class="gate" id="nameGate" role="dialog" aria-modal="true" aria-labelledby="nameTitle" hidden>
+  <div class="card">
+    <h2 id="nameTitle">번호를 적어 주세요</h2>
+    <p>내 번호를 숫자로만 적어 주세요. 예: 7</p>
+    <label for="nameInput" style="position:absolute;left:-9999px">번호</label>
+    <input id="nameInput" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" autocomplete="off" placeholder="번호">
+    <p class="err" id="nameErr" role="alert"></p>
+    <div class="row">
+      <button class="btn" id="nameSave" type="button">시작하기</button>
+      <button class="btn ghost" id="nameCancel" type="button" hidden>취소</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -727,8 +757,36 @@ function clientId(){
   cidMem=id; return id;
 }
 function dbBase(){ return DB_URL.replace(/\/+$/,""); }
+var myName=store.get("soundlab_name")||"";
+if(!/^\d{1,3}$/.test(myName)) myName="";
+function cleanName(s){
+  var t=String(s||"").replace(/\s+/g,"");
+  if(!/^\d{1,3}$/.test(t)) return "";
+  var n=parseInt(t,10); return n>0?String(n):"";
+}
+function paintName(){
+  var b=$("nameBtn");
+  if(myName){ b.textContent="👤 "+myName+"번 · 바꾸기"; b.hidden=false; } else { b.hidden=true; }
+}
+function openGate(){
+  $("nameInput").value=myName; $("nameErr").textContent=""; $("nameCancel").hidden=!myName;
+  $("nameGate").hidden=false;
+  setTimeout(function(){ $("nameInput").focus(); },0);
+}
+function saveName(){
+  var v=cleanName($("nameInput").value);
+  if(!v){ $("nameErr").textContent="번호를 숫자로만 적어 주세요. 예: 7"; $("nameInput").focus(); return; }
+  myName=v; store.set("soundlab_name",v);
+  $("nameGate").hidden=true; paintName(); sendFields({n:v});
+}
+$("nameSave").addEventListener("click",saveName);
+$("nameInput").addEventListener("keydown",function(e){ if(e.key==="Enter"){ e.preventDefault(); saveName(); } });
+$("nameCancel").addEventListener("click",function(){ $("nameGate").hidden=true; });
+$("nameBtn").addEventListener("click",openGate);
+
 function sendFields(o){
   if(!DB_URL) return;
+  if(myName&&o.n===undefined) o.n=myName;
   var base=dbBase()+"/poll/"+clientId()+"/";
   Object.keys(o).forEach(function(k){
     fetch(base+k+".json",{method:"PUT",body:JSON.stringify(o[k])})
@@ -746,7 +804,10 @@ var TSEC=[
    groups:[{rows:[["c_ok","정답 (짧은 음판은 높은 소리, 긴 음판은 낮은 소리)"],["c_ng","다시 생각해야 해요"],["c_no","아직 확인하기를 누르지 않았어요"]]}],note:"tSub2"},
   {num:"3",name:"소리 만들기",stage:"활동 2",
    title:"(활동 2) 3. 소리 만들기에서 학생들이 네 가지 소리를 낸 결과예요.",
-   groups:[{rows:[["m_H","같은 세기로 높은 소리 내기"],["m_L","같은 세기로 낮은 소리 내기"],["m_HS","높은 소리를 작게 내기"],["m_LB","낮은 소리를 크게 내기"],["m_all","네 가지를 모두 해낸 학생"]]}]},
+   groups:[
+    {rows:[["m_H","같은 세기로 높은 소리 내기"],["m_L","같은 세기로 낮은 소리 내기"],["m_HS","높은 소리를 작게 내기"],["m_LB","낮은 소리를 크게 내기"],["m_all","네 가지를 모두 해낸 학생"]]},
+    {h:"아직 네 가지를 모두 하지 못한 학생 (남은 것)",list:"m_pend"}
+   ]},
   {num:"4",name:"정리하기",stage:"정리",
    title:"(정리) 4. 정리하기에서 학생들이 문제를 푼 결과와 자기평가 결과예요.",
    groups:[
@@ -759,6 +820,9 @@ var TSEC=[
    ]}
 ];
 var tBuilt=false;
+function mkNames(id,hide){
+  var nl=document.createElement("div"); nl.className="names"; nl.id="tl_"+id; nl.hidden=!!hide; return nl;
+}
 function buildTeacher(){
   if(tBuilt) return; tBuilt=true;
   var tabs=$("tTabs"), body=$("tBody");
@@ -774,15 +838,16 @@ function buildTeacher(){
     var h=document.createElement("p"); h.className="lead"; h.textContent=sec.title; s.appendChild(h);
     sec.groups.forEach(function(g){
       if(g.h){ var gh=document.createElement("h3"); gh.className="tgh"; gh.textContent=g.h; s.appendChild(gh); }
-      g.rows.forEach(function(r){
+      (g.rows||[]).forEach(function(r){
         var row=document.createElement("div"); row.className="trow";
         var lab=document.createElement("span"); lab.className="lab"; lab.textContent=r[1];
         var tr=document.createElement("div"); tr.className="track";
         var fl=document.createElement("div"); fl.className="tfill"; fl.id="tb_"+r[0]; tr.appendChild(fl);
         var nm=document.createElement("span"); nm.className="num"; nm.id="tn_"+r[0]; nm.textContent="0";
         row.appendChild(lab); row.appendChild(tr); row.appendChild(nm);
-        s.appendChild(row);
+        s.appendChild(row); s.appendChild(mkNames(r[0],true));
       });
+      if(g.list){ s.appendChild(mkNames(g.list,true)); }
     });
     if(sec.note){ var n=document.createElement("div"); n.className="tsub"; n.id=sec.note; s.appendChild(n); }
     body.appendChild(s);
@@ -792,36 +857,58 @@ function tShow(i){
   Array.prototype.forEach.call($("tTabs").children,function(b,k){ b.setAttribute("aria-selected",k===i?"true":"false"); });
   Array.prototype.forEach.call($("tBody").children,function(s,k){ s.hidden=(k!==i); });
 }
+var MLAB={H:"높은 소리",L:"낮은 소리",HS:"높은 소리 작게",LB:"낮은 소리 크게"};
 function tally(d){
-  var T={}, P=0, id, r, k;
-  function add(x){ T[x]=(T[x]||0)+1; }
+  var T={}, L={}, P=0, id, r, k, nm;
+  function add(x){ T[x]=(T[x]||0)+1; (L[x]=L[x]||[]).push(nm); }
   for(id in d){
     if(!Object.prototype.hasOwnProperty.call(d,id)) continue;
     r=d[id]; if(!r||typeof r!=="object") continue;
     P++;
+    nm=(typeof r.n==="string"&&r.n)?(/^\d+$/.test(r.n)?r.n+"번":r.n):"(번호 없음)";
     if(r.v==="1") add("v1"); else if(r.v==="2") add("v2"); else if(r.v==="same") add("vs");
-    if(r.v==="1"||r.v==="2"){ add(String(r.h)===r.v?"v_hi":"v_lo"); }
+    if(r.v==="1"||r.v==="2"){ T[String(r.h)===r.v?"v_hi":"v_lo"]=(T[String(r.h)===r.v?"v_hi":"v_lo"]||0)+1; }
     if((r.cl==="low"||r.cl==="high")&&(r.cs==="low"||r.cs==="high")){
-      add((r.cl==="low"&&r.cs==="high")?"c_ok":"c_ng"); add("cl_"+r.cl); add("cs_"+r.cs);
-    }
-    var all=true;
-    ["H","L","HS","LB"].forEach(function(m){ if(r["m"+m]===true) add("m_"+m); else all=false; });
-    if(all) add("m_all");
-    if(typeof r.q1==="number") add(r.q1===7?"q1_ok":"q1_ng");
-    if(r.q2==="short"||r.q2==="long") add(r.q2==="short"?"q2_ok":"q2_ng");
-    if(r.q3==="yes"||r.q3==="no") add(r.q3==="no"?"q3_ok":"q3_ng");
+      add((r.cl==="low"&&r.cs==="high")?"c_ok":"c_ng");
+      T["cl_"+r.cl]=(T["cl_"+r.cl]||0)+1; T["cs_"+r.cs]=(T["cs_"+r.cs]||0)+1;
+    }else{ add("c_no"); }
+    var miss=[];
+    ["H","L","HS","LB"].forEach(function(m){ if(r["m"+m]===true) add("m_"+m); else miss.push(MLAB[m]); });
+    if(miss.length===0) add("m_all"); else { (L.m_pend=L.m_pend||[]).push(nm+" (남은 것: "+miss.join(", ")+")"); }
+    if(typeof r.q1==="number") add(r.q1===7?"q1_ok":"q1_ng"); else add("q1_no");
+    if(r.q2==="short"||r.q2==="long") add(r.q2==="short"?"q2_ok":"q2_ng"); else add("q2_no");
+    if(r.q3==="yes"||r.q3==="no") add(r.q3==="no"?"q3_ok":"q3_ng"); else add("q3_no");
     for(k=0;k<3;k++){ var e=r["e"+k]; if(typeof e==="number"&&e>=0&&e<=2) add("e"+k+"_"+Math.floor(e)); }
   }
-  ["c","q1","q2","q3"].forEach(function(p){ T[p+"_no"]=P-(T[p+"_ok"]||0)-(T[p+"_ng"]||0); });
-  return {T:T,P:P};
+  return {T:T,L:L,P:P};
+}
+function toneOf(k){
+  if(k==="m_pend"||/_no$/.test(k)) return "no";
+  if(/_ok$/.test(k)||/^m_/.test(k)) return "ok";
+  if(/_ng$/.test(k)||/^e\d_2$/.test(k)) return "ng";
+  return "";
+}
+function fillNames(key,arr){
+  var el=$("tl_"+key); if(!el) return;
+  el.textContent="";
+  var list=(arr||[]).slice().sort(function(a,b){ return a.localeCompare(b,"ko",{numeric:true}); });
+  var tone=toneOf(key);
+  list.forEach(function(n){
+    var sp=document.createElement("span"); sp.className="nm"+(tone?" "+tone:""); sp.textContent=n; el.appendChild(sp);
+  });
+  el.hidden=(list.length===0);
 }
 function renderTeacher(d){
   buildTeacher();
-  var x=tally(d), T=x.T, P=x.P, mx=Math.max(1,P);
-  TSEC.forEach(function(sec){ sec.groups.forEach(function(g){ g.rows.forEach(function(row){
-    var c=T[row[0]]||0;
-    $("tn_"+row[0]).textContent=c; $("tb_"+row[0]).style.width=(c/mx*100)+"%";
-  }); }); });
+  var x=tally(d), T=x.T, L=x.L, P=x.P, mx=Math.max(1,P);
+  TSEC.forEach(function(sec){ sec.groups.forEach(function(g){
+    (g.rows||[]).forEach(function(row){
+      var c=T[row[0]]||0;
+      $("tn_"+row[0]).textContent=c; $("tb_"+row[0]).style.width=(c/mx*100)+"%";
+      fillNames(row[0],L[row[0]]);
+    });
+    if(g.list) fillNames(g.list,L[g.list]);
+  }); });
   $("tSub1").textContent="높은 소리 기준: 높은 소리가 더 크다고 한 학생 "+(T.v_hi||0)+"명, 낮은 소리가 더 크다고 한 학생 "+(T.v_lo||0)+"명, 똑같다고 한 학생 "+(T.vs||0)+"명 (학생마다 1번·2번에 높은 소리가 무작위로 배정돼요.)";
   $("tSub2").textContent="짧은 음판의 ‘도’를 높은 소리라고 고른 학생 "+(T.cs_high||0)+"명, 낮은 소리라고 고른 학생 "+(T.cs_low||0)+"명 · 긴 음판의 ‘도’를 낮은 소리라고 고른 학생 "+(T.cl_low||0)+"명, 높은 소리라고 고른 학생 "+(T.cl_high||0)+"명 (마지막으로 확인한 답 기준)";
   $("tStatus").textContent="참여 "+P+"명 · 2초마다 자동 갱신 · "+new Date().toLocaleTimeString("ko-KR");
@@ -839,10 +926,14 @@ function applyMode(){
   document.body.classList.toggle("teacher",on);
   if(tTimer){ clearInterval(tTimer); tTimer=null; }
   if(on){
+    $("nameGate").hidden=true;
     buildTeacher();
     $("tSetup").hidden=!!DB_URL;
     if(!DB_URL){ $("tStatus").textContent=""; }
     else { fetchTeacher(); tTimer=setInterval(fetchTeacher,2000); }
+  }else if(DB_URL){
+    paintName();
+    if(!myName) openGate(); else sendFields({n:myName});
   }
 }
 $("tRefresh").addEventListener("click",fetchTeacher);
