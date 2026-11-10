@@ -94,6 +94,8 @@ body.teacher .tonly{ display:block; }
 .trow .track{ height:40px; border-radius:12px; background:var(--soft); border:2px solid var(--line); overflow:hidden; }
 .trow .tfill{ height:100%; width:0%; background:var(--brand); transition:width .35s ease; }
 .trow .num{ font-weight:800; font-size:28px; text-align:right; font-variant-numeric:tabular-nums; }
+.trow.hl .lab{ color:var(--good); font-size:20px; }
+.trow.hl .num{ color:var(--good); font-size:30px; }
 .tsub{ margin-top:18px; padding:14px 16px; border-radius:14px; background:var(--surface); border:2px dashed var(--line); font-size:17px; }
 .names{ display:flex; flex-wrap:wrap; gap:6px; margin:-2px 0 8px; }
 .names[hidden]{ display:none; }
@@ -114,6 +116,7 @@ body.teacher #nameBtn{ display:none; }
   .ttabs{ grid-template-columns:repeat(2,1fr); }
   .trow{ grid-template-columns:110px 1fr 52px; }
   .trow .lab{ font-size:16px; } .trow .num{ font-size:24px; }
+  .trow.hl .lab{ font-size:18px; } .trow.hl .num{ font-size:26px; }
 }
 
 /* vote */
@@ -760,7 +763,7 @@ function dbBase(){ return DB_URL.replace(/\/+$/,""); }
 var myName=store.get("soundlab_name")||"";
 if(!/^\d{1,3}$/.test(myName)) myName="";
 function cleanName(s){
-  var t=String(s||"").replace(/\s+/g,"");
+  var t=String(s||"").replace(/\s+/g,"").replace(/번$/,"");
   if(!/^\d{1,3}$/.test(t)) return "";
   var n=parseInt(t,10); return n>0?String(n):"";
 }
@@ -839,7 +842,7 @@ function buildTeacher(){
     sec.groups.forEach(function(g){
       if(g.h){ var gh=document.createElement("h3"); gh.className="tgh"; gh.textContent=g.h; s.appendChild(gh); }
       (g.rows||[]).forEach(function(r){
-        var row=document.createElement("div"); row.className="trow";
+        var row=document.createElement("div"); row.className="trow"+(r[0]==="m_all"?" hl":"");
         var lab=document.createElement("span"); lab.className="lab"; lab.textContent=r[1];
         var tr=document.createElement("div"); tr.className="track";
         var fl=document.createElement("div"); fl.className="tfill"; fl.id="tb_"+r[0]; tr.appendChild(fl);
