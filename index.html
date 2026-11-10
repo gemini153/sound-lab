@@ -80,6 +80,22 @@ h2{ margin:0 0 6px; font-size:25px; font-weight:800; letter-spacing:-0.015em; li
 .btn.ghost{ background:transparent; color:var(--brand); }
 .btn:disabled{ opacity:.45; cursor:not-allowed; }
 
+
+/* teacher poll */
+.tonly{ display:none; }
+body.teacher .tabs, body.teacher main, body.teacher #zepTop{ display:none; }
+body.teacher .tonly{ display:block; }
+.tpanel{ margin-top:16px; }
+.tstatus{ margin:8px 0 14px; color:var(--muted); font-size:16px; }
+.trow{ display:grid; grid-template-columns:150px 1fr 72px; align-items:center; gap:12px; margin:12px 0; }
+.trow .lab{ font-weight:800; font-size:20px; }
+.trow .track{ height:44px; border-radius:12px; background:var(--soft); border:2px solid var(--line); overflow:hidden; }
+.trow .fill{ height:100%; width:0%; background:var(--brand); transition:width .35s ease; }
+.trow .num{ font-weight:800; font-size:30px; text-align:right; font-variant-numeric:tabular-nums; }
+.tsub{ margin-top:18px; padding:14px 16px; border-radius:14px; background:var(--surface); border:2px dashed var(--line); font-size:17px; }
+.tsub b{ font-weight:800; }
+@media (max-width:700px){ .trow{ grid-template-columns:96px 1fr 56px; } .trow .lab{ font-size:17px; } .trow .num{ font-size:26px; } }
+
 /* vote */
 .duo{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .sound{
@@ -214,6 +230,23 @@ h2{ margin:0 0 6px; font-size:25px; font-weight:800; letter-spacing:-0.015em; li
   </nav>
 
   <main>
+
+    <!-- 교사용 실시간 집계 (주소 끝에 #teacher) -->
+    <section class="panel tonly tpanel" id="tpanel" aria-labelledby="tTitle">
+      <h2 id="tTitle">실시간 집계 (교사용)</h2>
+      <p class="lead">1 소리 듣고 생각하기에서 학생들이 누른 결과예요.</p>
+      <div class="fb warn" id="tSetup" hidden role="alert">집계 저장소가 아직 연결되지 않았어요. 파일 위쪽의 DB_URL에 Firebase 주소를 넣어 주세요.</div>
+      <p class="tstatus" id="tStatus" role="status" aria-live="polite">불러오는 중…</p>
+      <div class="trow"><span class="lab">1번이 더 커요</span><div class="track"><div class="fill" id="tb1"></div></div><span class="num" id="tn1">0</span></div>
+      <div class="trow"><span class="lab">2번이 더 커요</span><div class="track"><div class="fill" id="tb2"></div></div><span class="num" id="tn2">0</span></div>
+      <div class="trow"><span class="lab">똑같아요</span><div class="track"><div class="fill" id="tbs"></div></div><span class="num" id="tns">0</span></div>
+      <div class="tsub" id="tSub">높은 소리 기준: 아직 응답이 없어요.</div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn ghost" id="tRefresh" type="button">지금 새로고침</button>
+        <button class="btn ghost" id="tReset" type="button">집계 초기화</button>
+      </div>
+    </section>
+
     <!-- 도입 -->
     <section class="panel" id="p0" role="tabpanel" aria-labelledby="t0">
       <h2>두 소리를 듣고 생각해 보세요</h2>
@@ -228,7 +261,7 @@ h2{ margin:0 0 6px; font-size:25px; font-weight:800; letter-spacing:-0.015em; li
         <button class="btn ghost" type="button" data-k="2" disabled>2번이 더 커요</button>
         <button class="btn ghost" type="button" data-k="same" disabled>똑같아요</button>
       </div>
-      
+      <p class="hint" id="voteSync" role="status"></p>
       <div class="row"><button class="btn" id="revealBtn" type="button" disabled>정답 공개</button></div>
       <div class="reveal" id="reveal" hidden aria-live="polite">
         <p id="revealText"></p>
@@ -353,6 +386,8 @@ var MISSIONS=[
 
 /* ---------- state ---------- */
 var ZEP_URL="https://quiz.zep.us/play/E9pPLO";
+/* 실시간 집계용 Firebase Realtime Database 주소. 예: "https://내프로젝트-default-rtdb.asia-southeast1.firebasedatabase.app" */
+var DB_URL="https://sound-lab-165b4-default-rtdb.asia-southeast1.firebasedatabase.app";
 var S={vol:0.6,highDb:0,strength:2,zep:ZEP_URL};
 var V,C,M,Q;
 
@@ -495,6 +530,7 @@ $("snd2").addEventListener("click",function(){ playVote(2); });
 $("voteBtns").addEventListener("click",function(e){
   var b=e.target.closest("button"); if(!b||b.disabled) return;
   V.picked=true; $("revealBtn").disabled=false;
+  sendVote(b.getAttribute("data-k"));
   $("voteHint").textContent="투표했어요. 친구들은 어떻게 생각하는지 이야기해 보세요.";
 });
 $("revealBtn").addEventListener("click",function(){
@@ -676,6 +712,63 @@ function renderZep(){
   $("zepBox").hidden=false;
 }
 
+/* ---------- 실시간 집계 ---------- */
+var cidMem=null;
+function clientId(){
+  if(cidMem) return cidMem;
+  var id=store.get("soundlab_cid");
+  if(!id){ id="c"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); store.set("soundlab_cid",id); }
+  cidMem=id; return id;
+}
+function dbBase(){ return DB_URL.replace(/\/+$/,""); }
+function sendVote(k){
+  if(!DB_URL) return;
+  var el=$("voteSync"); el.textContent="";
+  fetch(dbBase()+"/poll/"+clientId()+".json",{method:"PUT",body:JSON.stringify({v:k,h:V.high})})
+    .then(function(r){ if(!r.ok) throw new Error("x"); })
+    .catch(function(){ el.textContent="집계에 전송하지 못했어요. 선생님께 알려 주세요."; });
+}
+var tTimer=null;
+function renderTeacher(d){
+  var n1=0,n2=0,ns=0,hi=0,lo=0,k;
+  for(k in d){
+    if(!Object.prototype.hasOwnProperty.call(d,k)) continue;
+    var r=d[k]; if(!r||typeof r!=="object") continue;
+    if(r.v==="1") n1++; else if(r.v==="2") n2++; else if(r.v==="same") ns++; else continue;
+    if(r.v!=="same"){ if(String(r.h)===r.v) hi++; else lo++; }
+  }
+  var tot=n1+n2+ns, mx=Math.max(1,tot);
+  $("tn1").textContent=n1; $("tn2").textContent=n2; $("tns").textContent=ns;
+  $("tb1").style.width=(n1/mx*100)+"%"; $("tb2").style.width=(n2/mx*100)+"%"; $("tbs").style.width=(ns/mx*100)+"%";
+  var t=new Date();
+  $("tStatus").textContent="총 "+tot+"명 응답 · 2초마다 자동 갱신 · "+t.toLocaleTimeString("ko-KR");
+  $("tSub").textContent="높은 소리 기준: 높은 소리가 더 크다고 한 학생 "+hi+"명, 낮은 소리가 더 크다고 한 학생 "+lo+"명, 똑같다고 한 학생 "+ns+"명 (학생마다 1번·2번에 높은 소리가 무작위로 배정돼요.)";
+}
+function fetchTeacher(){
+  if(!DB_URL) return;
+  fetch(dbBase()+"/poll.json",{cache:"no-store"})
+    .then(function(r){ if(!r.ok) throw new Error("x"); return r.json(); })
+    .then(function(d){ renderTeacher(d||{}); })
+    .catch(function(){ $("tStatus").textContent="집계를 불러오지 못했어요. DB 주소와 규칙을 확인해 주세요."; });
+}
+function applyMode(){
+  var on=(location.hash==="#teacher");
+  document.body.classList.toggle("teacher",on);
+  if(tTimer){ clearInterval(tTimer); tTimer=null; }
+  if(on){
+    $("tSetup").hidden=!!DB_URL;
+    if(!DB_URL){ $("tStatus").textContent=""; }
+    else { fetchTeacher(); tTimer=setInterval(fetchTeacher,2000); }
+  }
+}
+$("tRefresh").addEventListener("click",fetchTeacher);
+$("tReset").addEventListener("click",function(){
+  if(!DB_URL) return;
+  if(!window.confirm("지금까지의 집계를 모두 지울까요?")) return;
+  fetch(dbBase()+"/poll.json",{method:"DELETE"}).then(fetchTeacher).catch(function(){ $("tStatus").textContent="초기화하지 못했어요."; });
+});
+window.addEventListener("hashchange",applyMode);
+
 /* ---------- 처음부터 ---------- */
 function resetAll(){ initVote(); initCompare(); initMake(); initWrap(); go(0); }
 $("restart").addEventListener("click",resetAll);
@@ -683,6 +776,7 @@ $("restart").addEventListener("click",resetAll);
 /* ---------- start ---------- */
 renderZep();
 initVote(); initCompare(); initMake(); initWrap();
+applyMode();
 })();
 </script>
 </body>
