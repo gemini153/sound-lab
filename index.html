@@ -86,15 +86,20 @@ h2{ margin:0 0 6px; font-size:25px; font-weight:800; letter-spacing:-0.015em; li
 body.teacher .tabs, body.teacher #zepTop, body.teacher main > .panel:not(#tpanel){ display:none; }
 body.teacher .tonly{ display:block; }
 .tpanel{ margin-top:16px; }
-.tstatus{ margin:8px 0 14px; color:var(--muted); font-size:16px; }
-.trow{ display:grid; grid-template-columns:150px 1fr 72px; align-items:center; gap:12px; margin:12px 0; }
-.trow .lab{ font-weight:800; font-size:20px; }
-.trow .track{ height:44px; border-radius:12px; background:var(--soft); border:2px solid var(--line); overflow:hidden; }
-.trow .fill{ height:100%; width:0%; background:var(--brand); transition:width .35s ease; }
-.trow .num{ font-weight:800; font-size:30px; text-align:right; font-variant-numeric:tabular-nums; }
+.tstatus{ margin:8px 0 6px; color:var(--muted); font-size:16px; }
+.ttabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0 18px; }
+.tgh{ margin:20px 0 4px; font-size:19px; font-weight:800; }
+.trow{ display:grid; grid-template-columns:minmax(140px,300px) 1fr 70px; align-items:center; gap:12px; margin:10px 0; }
+.trow .lab{ font-weight:800; font-size:18px; line-height:1.35; }
+.trow .track{ height:40px; border-radius:12px; background:var(--soft); border:2px solid var(--line); overflow:hidden; }
+.trow .tfill{ height:100%; width:0%; background:var(--brand); transition:width .35s ease; }
+.trow .num{ font-weight:800; font-size:28px; text-align:right; font-variant-numeric:tabular-nums; }
 .tsub{ margin-top:18px; padding:14px 16px; border-radius:14px; background:var(--surface); border:2px dashed var(--line); font-size:17px; }
-.tsub b{ font-weight:800; }
-@media (max-width:700px){ .trow{ grid-template-columns:96px 1fr 56px; } .trow .lab{ font-size:17px; } .trow .num{ font-size:26px; } }
+@media (max-width:700px){
+  .ttabs{ grid-template-columns:repeat(2,1fr); }
+  .trow{ grid-template-columns:110px 1fr 52px; }
+  .trow .lab{ font-size:16px; } .trow .num{ font-size:24px; }
+}
 
 /* vote */
 .duo{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
@@ -220,6 +225,7 @@ body.teacher .tonly{ display:block; }
     <a id="zepTop" class="btn ghost zep" hidden target="_blank" rel="noopener noreferrer">AI 도우미 퀴즈 열기</a>
   </header>
 
+  <div class="fb warn audiowarn" id="syncWarn" hidden role="status">집계에 전송하지 못했어요. 선생님께 알려 주세요.</div>
   <div class="fb warn audiowarn" id="audioWarn" hidden role="alert">이 기기에서는 소리를 낼 수 없어요. 다른 브라우저나 기기에서 열어 주세요.</div>
 
   <nav class="tabs" role="tablist" aria-label="수업 순서">
@@ -234,14 +240,11 @@ body.teacher .tonly{ display:block; }
     <!-- 교사용 실시간 집계 (주소 끝에 #teacher) -->
     <section class="panel tonly tpanel" id="tpanel" aria-labelledby="tTitle">
       <h2 id="tTitle">실시간 집계 (교사용)</h2>
-      <p class="lead">1 소리 듣고 생각하기에서 학생들이 누른 결과예요.</p>
       <div class="fb warn" id="tSetup" hidden role="alert">집계 저장소가 아직 연결되지 않았어요. 파일 위쪽의 DB_URL에 Firebase 주소를 넣어 주세요.</div>
       <p class="tstatus" id="tStatus" role="status" aria-live="polite">불러오는 중…</p>
-      <div class="trow"><span class="lab">1번이 더 커요</span><div class="track"><div class="fill" id="tb1"></div></div><span class="num" id="tn1">0</span></div>
-      <div class="trow"><span class="lab">2번이 더 커요</span><div class="track"><div class="fill" id="tb2"></div></div><span class="num" id="tn2">0</span></div>
-      <div class="trow"><span class="lab">똑같아요</span><div class="track"><div class="fill" id="tbs"></div></div><span class="num" id="tns">0</span></div>
-      <div class="tsub" id="tSub">높은 소리 기준: 아직 응답이 없어요.</div>
-      <div class="row" style="margin-top:16px">
+      <div class="ttabs" id="tTabs" role="tablist" aria-label="집계 단계"></div>
+      <div id="tBody"></div>
+      <div class="row" style="margin-top:20px">
         <button class="btn ghost" id="tRefresh" type="button">지금 새로고침</button>
         <button class="btn ghost" id="tReset" type="button">집계 초기화</button>
       </div>
@@ -261,7 +264,6 @@ body.teacher .tonly{ display:block; }
         <button class="btn ghost" type="button" data-k="2" disabled>2번이 더 커요</button>
         <button class="btn ghost" type="button" data-k="same" disabled>똑같아요</button>
       </div>
-      <p class="hint" id="voteSync" role="status"></p>
       <div class="row"><button class="btn" id="revealBtn" type="button" disabled>정답 공개</button></div>
       <div class="reveal" id="reveal" hidden aria-live="polite">
         <p id="revealText"></p>
@@ -530,7 +532,7 @@ $("snd2").addEventListener("click",function(){ playVote(2); });
 $("voteBtns").addEventListener("click",function(e){
   var b=e.target.closest("button"); if(!b||b.disabled) return;
   V.picked=true; $("revealBtn").disabled=false;
-  sendVote(b.getAttribute("data-k"));
+  sendFields({v:b.getAttribute("data-k"),h:V.high});
   $("voteHint").textContent="투표했어요. 친구들은 어떻게 생각하는지 이야기해 보세요.";
 });
 $("revealBtn").addEventListener("click",function(){
@@ -583,6 +585,7 @@ $("cmpCheck").addEventListener("click",function(){
   if(!(C.heard.long&&C.heard.short)){ fb.className="fb warn"; fb.textContent="먼저 짧은 음판과 긴 음판을 눌러서 소리를 들어 보세요."; return; }
   if(!C.pick.long||!C.pick.short){ fb.className="fb warn"; fb.textContent="두 문장의 빈칸을 모두 골라 주세요."; return; }
   var okL=(C.pick.long==="low"), okS=(C.pick.short==="high");
+  sendFields({cl:C.pick.long,cs:C.pick.short});
   if(okL&&okS){
     fb.className="fb good";
     fb.innerHTML="맞아요! 음판이 길면 낮은 소리, 음판이 짧으면 높은 소리가 나요.<p>도레미 순서로 들으면 음판이 짧아질수록 소리가 점점 높아져요.</p>";
@@ -614,7 +617,7 @@ function initMake(){
         if(p==="high"&&l==="small") key="HS";
         if(p==="low"&&l==="big") key="LB";
       }
-      if(key&&!M.done[key]){ M.done[key]=true; renderMissions(); if(M.done.H&&M.done.L) renderStrength(); }
+      if(key&&!M.done[key]){ M.done[key]=true; var mo={}; mo["m"+key]=true; sendFields(mo); renderMissions(); if(M.done.H&&M.done.L) renderStrength(); }
     }
   });
   $("chipPitch").textContent="높낮이: 아직 없어요"; $("chipLoud").textContent="세기: 아직 없어요";
@@ -663,6 +666,7 @@ function initWrap(){
     maxH:110,minH:62,showName:false,
     onPress:function(i,b){
       strike(i,NORMAL); vibrate(b,NORMAL,i);
+      sendFields({q1:i});
       var fb=$("q1Fb");
       if(i===7){ fb.className="fb good"; fb.innerHTML="맞아요!<p>가장 짧은 음판이 가장 높은 소리를 내요.</p>"; }
       else{ fb.className="fb bad"; fb.innerHTML="아쉬워요.<p>음판의 길이를 비교해 보고 다시 눌러 보세요.</p>"; }
@@ -679,6 +683,7 @@ function answer(id,correct,goodMsg,badMsg){
   $(id).addEventListener("click",function(e){
     var b=e.target.closest("button"); if(!b) return;
     Array.prototype.forEach.call($(id).children,function(x){ x.classList.toggle("picked",x===b); });
+    var so={}; so[id]=b.dataset.v; sendFields(so);
     var fb=$(id+"Fb");
     if(b.dataset.v===correct){ fb.className="fb good"; fb.innerHTML=goodMsg; }
     else{ fb.className="fb bad"; fb.innerHTML=badMsg; }
@@ -704,6 +709,7 @@ function renderSelfEval(){
 $("selfeval").addEventListener("click",function(e){
   var b=e.target.closest(".faces button"); if(!b) return;
   Array.prototype.forEach.call(b.parentNode.children,function(x){ x.setAttribute("aria-pressed",x===b?"true":"false"); });
+  var eo={}; eo["e"+b.closest(".se").getAttribute("data-k")]=Array.prototype.indexOf.call(b.parentNode.children,b); sendFields(eo);
 });
 
 /* ---------- AI 도우미 퀴즈 링크 (고정) ---------- */
@@ -721,28 +727,104 @@ function clientId(){
   cidMem=id; return id;
 }
 function dbBase(){ return DB_URL.replace(/\/+$/,""); }
-function sendVote(k){
+function sendFields(o){
   if(!DB_URL) return;
-  var el=$("voteSync"); el.textContent="";
-  fetch(dbBase()+"/poll/"+clientId()+".json",{method:"PUT",body:JSON.stringify({v:k,h:V.high})})
-    .then(function(r){ if(!r.ok) throw new Error("x"); })
-    .catch(function(){ el.textContent="집계에 전송하지 못했어요. 선생님께 알려 주세요."; });
+  var base=dbBase()+"/poll/"+clientId()+"/";
+  Object.keys(o).forEach(function(k){
+    fetch(base+k+".json",{method:"PUT",body:JSON.stringify(o[k])})
+      .then(function(r){ if(!r.ok) throw new Error("x"); $("syncWarn").hidden=true; })
+      .catch(function(){ $("syncWarn").hidden=false; });
+  });
 }
-var tTimer=null;
-function renderTeacher(d){
-  var n1=0,n2=0,ns=0,hi=0,lo=0,k;
-  for(k in d){
-    if(!Object.prototype.hasOwnProperty.call(d,k)) continue;
-    var r=d[k]; if(!r||typeof r!=="object") continue;
-    if(r.v==="1") n1++; else if(r.v==="2") n2++; else if(r.v==="same") ns++; else continue;
-    if(r.v!=="same"){ if(String(r.h)===r.v) hi++; else lo++; }
+
+var TSEC=[
+  {num:"1",name:"소리 듣고 생각하기",stage:"도입",
+   title:"(도입) 1. 소리 듣고 생각하기에서 학생들이 누른 결과예요.",
+   groups:[{rows:[["v1","1번이 더 커요"],["v2","2번이 더 커요"],["vs","똑같아요"]]}],note:"tSub1"},
+  {num:"2",name:"음판 비교하기",stage:"활동 1",
+   title:"(활동 1) 2. 음판 비교하기에서 학생들이 정답을 체크한 결과예요.",
+   groups:[{rows:[["c_ok","정답 (짧은 음판은 높은 소리, 긴 음판은 낮은 소리)"],["c_ng","다시 생각해야 해요"],["c_no","아직 확인하기를 누르지 않았어요"]]}],note:"tSub2"},
+  {num:"3",name:"소리 만들기",stage:"활동 2",
+   title:"(활동 2) 3. 소리 만들기에서 학생들이 네 가지 소리를 낸 결과예요.",
+   groups:[{rows:[["m_H","같은 세기로 높은 소리 내기"],["m_L","같은 세기로 낮은 소리 내기"],["m_HS","높은 소리를 작게 내기"],["m_LB","낮은 소리를 크게 내기"],["m_all","네 가지를 모두 해낸 학생"]]}]},
+  {num:"4",name:"정리하기",stage:"정리",
+   title:"(정리) 4. 정리하기에서 학생들이 문제를 푼 결과와 자기평가 결과예요.",
+   groups:[
+    {h:"문제 1. 가장 높은 소리가 나는 음판 누르기",rows:[["q1_ok","정답"],["q1_ng","오답"],["q1_no","아직 풀지 않았어요"]]},
+    {h:"문제 2. 높은 소리를 내려면 어느 음판을 눌러야 할까요?",rows:[["q2_ok","정답 (짧은 음판)"],["q2_ng","오답"],["q2_no","아직 풀지 않았어요"]]},
+    {h:"문제 3. “높은 소리는 큰 소리야.” 이 말은 어떨까요?",rows:[["q3_ok","정답 (틀려요)"],["q3_ng","오답"],["q3_no","아직 풀지 않았어요"]]},
+    {h:"자기평가 · 지식·이해",rows:[["e0_0","😀 매우 그래요"],["e0_1","🙂 보통이에요"],["e0_2","😐 더 노력할래요"]]},
+    {h:"자기평가 · 과정·기능",rows:[["e1_0","😀 매우 그래요"],["e1_1","🙂 보통이에요"],["e1_2","😐 더 노력할래요"]]},
+    {h:"자기평가 · 가치·태도",rows:[["e2_0","😀 매우 그래요"],["e2_1","🙂 보통이에요"],["e2_2","😐 더 노력할래요"]]}
+   ]}
+];
+var tBuilt=false;
+function buildTeacher(){
+  if(tBuilt) return; tBuilt=true;
+  var tabs=$("tTabs"), body=$("tBody");
+  TSEC.forEach(function(sec,i){
+    var tb=document.createElement("button"); tb.type="button"; tb.className="tab"; tb.setAttribute("role","tab");
+    tb.setAttribute("aria-selected",i===0?"true":"false");
+    var tbb=document.createElement("b"); tbb.textContent=sec.num+". "+sec.name;
+    var tbs=document.createElement("small"); tbs.textContent=sec.stage;
+    tb.appendChild(tbb); tb.appendChild(tbs);
+    tb.addEventListener("click",function(){ tShow(i); });
+    tabs.appendChild(tb);
+    var s=document.createElement("div"); s.className="tsec"; s.hidden=(i!==0);
+    var h=document.createElement("p"); h.className="lead"; h.textContent=sec.title; s.appendChild(h);
+    sec.groups.forEach(function(g){
+      if(g.h){ var gh=document.createElement("h3"); gh.className="tgh"; gh.textContent=g.h; s.appendChild(gh); }
+      g.rows.forEach(function(r){
+        var row=document.createElement("div"); row.className="trow";
+        var lab=document.createElement("span"); lab.className="lab"; lab.textContent=r[1];
+        var tr=document.createElement("div"); tr.className="track";
+        var fl=document.createElement("div"); fl.className="tfill"; fl.id="tb_"+r[0]; tr.appendChild(fl);
+        var nm=document.createElement("span"); nm.className="num"; nm.id="tn_"+r[0]; nm.textContent="0";
+        row.appendChild(lab); row.appendChild(tr); row.appendChild(nm);
+        s.appendChild(row);
+      });
+    });
+    if(sec.note){ var n=document.createElement("div"); n.className="tsub"; n.id=sec.note; s.appendChild(n); }
+    body.appendChild(s);
+  });
+}
+function tShow(i){
+  Array.prototype.forEach.call($("tTabs").children,function(b,k){ b.setAttribute("aria-selected",k===i?"true":"false"); });
+  Array.prototype.forEach.call($("tBody").children,function(s,k){ s.hidden=(k!==i); });
+}
+function tally(d){
+  var T={}, P=0, id, r, k;
+  function add(x){ T[x]=(T[x]||0)+1; }
+  for(id in d){
+    if(!Object.prototype.hasOwnProperty.call(d,id)) continue;
+    r=d[id]; if(!r||typeof r!=="object") continue;
+    P++;
+    if(r.v==="1") add("v1"); else if(r.v==="2") add("v2"); else if(r.v==="same") add("vs");
+    if(r.v==="1"||r.v==="2"){ add(String(r.h)===r.v?"v_hi":"v_lo"); }
+    if((r.cl==="low"||r.cl==="high")&&(r.cs==="low"||r.cs==="high")){
+      add((r.cl==="low"&&r.cs==="high")?"c_ok":"c_ng"); add("cl_"+r.cl); add("cs_"+r.cs);
+    }
+    var all=true;
+    ["H","L","HS","LB"].forEach(function(m){ if(r["m"+m]===true) add("m_"+m); else all=false; });
+    if(all) add("m_all");
+    if(typeof r.q1==="number") add(r.q1===7?"q1_ok":"q1_ng");
+    if(r.q2==="short"||r.q2==="long") add(r.q2==="short"?"q2_ok":"q2_ng");
+    if(r.q3==="yes"||r.q3==="no") add(r.q3==="no"?"q3_ok":"q3_ng");
+    for(k=0;k<3;k++){ var e=r["e"+k]; if(typeof e==="number"&&e>=0&&e<=2) add("e"+k+"_"+Math.floor(e)); }
   }
-  var tot=n1+n2+ns, mx=Math.max(1,tot);
-  $("tn1").textContent=n1; $("tn2").textContent=n2; $("tns").textContent=ns;
-  $("tb1").style.width=(n1/mx*100)+"%"; $("tb2").style.width=(n2/mx*100)+"%"; $("tbs").style.width=(ns/mx*100)+"%";
-  var t=new Date();
-  $("tStatus").textContent="총 "+tot+"명 응답 · 2초마다 자동 갱신 · "+t.toLocaleTimeString("ko-KR");
-  $("tSub").textContent="높은 소리 기준: 높은 소리가 더 크다고 한 학생 "+hi+"명, 낮은 소리가 더 크다고 한 학생 "+lo+"명, 똑같다고 한 학생 "+ns+"명 (학생마다 1번·2번에 높은 소리가 무작위로 배정돼요.)";
+  ["c","q1","q2","q3"].forEach(function(p){ T[p+"_no"]=P-(T[p+"_ok"]||0)-(T[p+"_ng"]||0); });
+  return {T:T,P:P};
+}
+function renderTeacher(d){
+  buildTeacher();
+  var x=tally(d), T=x.T, P=x.P, mx=Math.max(1,P);
+  TSEC.forEach(function(sec){ sec.groups.forEach(function(g){ g.rows.forEach(function(row){
+    var c=T[row[0]]||0;
+    $("tn_"+row[0]).textContent=c; $("tb_"+row[0]).style.width=(c/mx*100)+"%";
+  }); }); });
+  $("tSub1").textContent="높은 소리 기준: 높은 소리가 더 크다고 한 학생 "+(T.v_hi||0)+"명, 낮은 소리가 더 크다고 한 학생 "+(T.v_lo||0)+"명, 똑같다고 한 학생 "+(T.vs||0)+"명 (학생마다 1번·2번에 높은 소리가 무작위로 배정돼요.)";
+  $("tSub2").textContent="짧은 음판의 ‘도’를 높은 소리라고 고른 학생 "+(T.cs_high||0)+"명, 낮은 소리라고 고른 학생 "+(T.cs_low||0)+"명 · 긴 음판의 ‘도’를 낮은 소리라고 고른 학생 "+(T.cl_low||0)+"명, 높은 소리라고 고른 학생 "+(T.cl_high||0)+"명 (마지막으로 확인한 답 기준)";
+  $("tStatus").textContent="참여 "+P+"명 · 2초마다 자동 갱신 · "+new Date().toLocaleTimeString("ko-KR");
 }
 function fetchTeacher(){
   if(!DB_URL) return;
@@ -751,11 +833,13 @@ function fetchTeacher(){
     .then(function(d){ renderTeacher(d||{}); })
     .catch(function(){ $("tStatus").textContent="집계를 불러오지 못했어요. DB 주소와 규칙을 확인해 주세요."; });
 }
+var tTimer=null;
 function applyMode(){
   var on=(location.hash==="#teacher");
   document.body.classList.toggle("teacher",on);
   if(tTimer){ clearInterval(tTimer); tTimer=null; }
   if(on){
+    buildTeacher();
     $("tSetup").hidden=!!DB_URL;
     if(!DB_URL){ $("tStatus").textContent=""; }
     else { fetchTeacher(); tTimer=setInterval(fetchTeacher,2000); }
