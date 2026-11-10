@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>소리 실험실: 높은 소리와 낮은 소리</title>
+<style>
+:root{
+  --bg:#EEF7FA; --surface:#FFFFFF; --ink:#12324A; --muted:#4A6679; --line:#C8DEE7;
+  --brand:#0F7A97; --brand-ink:#FFFFFF; --soft:#DDF0F6;
+  --frame:#F2A33A; --frame-deep:#C9780F; --rail:#8A5A12; --tray-ink:#12324A;
+  --good:#17804F; --good-bg:#DDF3E8; --bad:#B8362F; --bad-bg:#FBE3E1; --warn-bg:#FFF1CF; --warn:#7A5200;
+  --focus:#0B57D0;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1C27; --surface:#142B3A; --ink:#E7F3F8; --muted:#9FBCCB; --line:#27475A;
+    --brand:#5BC6E2; --brand-ink:#06222D; --soft:#1B3A4D;
+    --frame:#F5B04C; --frame-deep:#D58A1E; --rail:#B9842C; --tray-ink:#12324A;
+    --good:#5ED79B; --good-bg:#123A2A; --bad:#FF8A82; --bad-bg:#432220; --warn-bg:#43360F; --warn:#FFD98A;
+    --focus:#8AB4FF;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1C27; --surface:#142B3A; --ink:#E7F3F8; --muted:#9FBCCB; --line:#27475A;
+  --brand:#5BC6E2; --brand-ink:#06222D; --soft:#1B3A4D;
+  --frame:#F5B04C; --frame-deep:#D58A1E; --rail:#B9842C; --tray-ink:#12324A;
+  --good:#5ED79B; --good-bg:#123A2A; --bad:#FF8A82; --bad-bg:#432220; --warn-bg:#43360F; --warn:#FFD98A;
+  --focus:#8AB4FF;
+  color-scheme: dark;
+}
+html{ scroll-padding-top:env(safe-area-inset-top,0px); -webkit-text-size-adjust:100%; }
+*,*::before,*::after{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",system-ui,sans-serif;
+  font-size:18px; line-height:1.55;
+}
+.wrap{ max-width:1000px; margin:0 auto; padding:18px 16px 48px; }
+:focus-visible{ outline:3px solid var(--focus); outline-offset:3px; }
+
+/* header */
+.top{ display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.logo{ display:flex; align-items:center; gap:4px; height:46px; }
+.logo i{ display:block; width:11px; border-radius:3px; }
+h1{ margin:0; font-size:30px; font-weight:800; letter-spacing:-0.02em; line-height:1.2; }
+.sub{ margin:2px 0 0; color:var(--muted); font-size:15px; }
+.zep{ margin-left:auto; text-decoration:none; display:inline-flex; align-items:center; }
+
+/* tabs */
+.tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px; }
+.tab{
+  font:inherit; text-align:left; cursor:pointer; padding:10px 12px; border-radius:14px;
+  border:2px solid var(--line); background:var(--surface); color:var(--ink); min-height:56px;
+}
+.tab b{ display:block; font-size:17px; line-height:1.3; }
+.tab small{ display:block; font-size:13px; color:var(--muted); }
+.tab[aria-selected="true"]{ background:var(--brand); border-color:var(--brand); color:var(--brand-ink); }
+.tab[aria-selected="true"] small{ color:inherit; opacity:.85; }
+@media (max-width:620px){ .tabs{ grid-template-columns:repeat(2,1fr); } }
+
+/* panels */
+.panel{ background:var(--surface); border:1px solid var(--line); border-radius:22px; padding:22px; margin-top:14px; }
+.panel[hidden]{ display:none; }
+.zep[hidden]{ display:none; }
+h2{ margin:0 0 6px; font-size:25px; font-weight:800; letter-spacing:-0.015em; line-height:1.3; }
+.lead{ margin:0 0 16px; font-size:18px; }
+.note{ margin:8px 0 0; font-size:15px; color:var(--muted); }
+.row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+.btn{
+  font:inherit; font-weight:700; min-height:48px; padding:10px 20px; border-radius:14px; cursor:pointer;
+  border:2px solid var(--brand); background:var(--brand); color:var(--brand-ink);
+}
+.btn.ghost{ background:transparent; color:var(--brand); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* vote */
+.duo{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.sound{
+  font:inherit; font-weight:800; font-size:22px; cursor:pointer; min-height:120px; border-radius:20px;
+  border:3px solid var(--brand); background:var(--soft); color:var(--ink);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+}
+.sound .play{ font-size:30px; color:var(--brand); }
+.sound.pulse{ animation:pulse .5s ease-out; }
+@keyframes pulse{ 0%{ box-shadow:0 0 0 0 var(--brand); } 100%{ box-shadow:0 0 0 22px transparent; } }
+.sound.heard{ border-style:solid; background:var(--surface); }
+.hint{ margin:12px 0 6px; font-size:16px; color:var(--muted); min-height:1.5em; }
+.votes{ display:flex; gap:10px; flex-wrap:wrap; }
+.votes .btn{ flex:1 1 150px; }
+.reveal{ margin-top:16px; padding:18px; border-radius:18px; background:var(--soft); border:2px solid var(--brand); }
+.reveal p{ margin:0 0 10px; }
+.problem{ margin-top:12px; padding:14px 16px; border-radius:14px; background:var(--surface); border:2px dashed var(--brand); font-weight:800; font-size:20px; }
+
+/* instrument */
+.tray{
+  position:relative; background:var(--frame); border:4px solid var(--frame-deep); border-radius:28px;
+  padding:26px 22px 22px; color:var(--tray-ink);
+}
+.tray.small{ padding:16px 14px; border-radius:20px; }
+.bars{ position:relative; display:flex; gap:10px; align-items:center; justify-content:center; }
+.bars::before,.bars::after{
+  content:""; position:absolute; left:-6px; right:-6px; height:6px; border-radius:3px; background:var(--rail); z-index:0;
+}
+.bars::before{ top:24%; } .bars::after{ top:74%; }
+.slot{ position:relative; z-index:1; flex:1 1 0; max-width:96px; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+.slot.wide{ max-width:140px; }
+.cap{ font-weight:800; font-size:16px; text-align:center; line-height:1.2; }
+.bar{
+  position:relative; z-index:1; width:100%; height:var(--h); border:0; border-radius:10px;
+  background:var(--bg-bar); color:var(--fg-bar);
+  display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:10px 0;
+  font:inherit; font-weight:800; font-size:20px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.16), inset 0 3px 0 rgba(255,255,255,.3);
+  will-change:transform;
+}
+.bar:active{ filter:brightness(1.08); }
+.screw{ width:12px; height:12px; border-radius:50%; background:radial-gradient(circle at 35% 30%,#fff8d6,#c9a227 60%,#7a5d0f); }
+.legend{ display:flex; align-items:center; gap:10px; margin:8px 4px 0; font-size:15px; color:var(--muted); }
+.legend .line{ flex:1; height:2px; background:var(--line); }
+
+/* strength + readout */
+.ctrl{ display:flex; gap:22px; flex-wrap:wrap; align-items:flex-start; margin-top:18px; }
+.ctrl > div{ flex:1 1 300px; }
+.lab{ font-weight:800; font-size:17px; margin-bottom:6px; }
+.strength{ display:flex; align-items:center; gap:8px; }
+.strength button{
+  font:inherit; display:grid; place-items:center; width:54px; height:54px; border-radius:50%; cursor:pointer;
+  border:2px solid var(--line); background:var(--surface);
+}
+.strength button i{ display:block; border-radius:50%; background:var(--muted); }
+.strength button[aria-checked="true"]{ border-color:var(--brand); background:var(--soft); }
+.strength button[aria-checked="true"] i{ background:var(--brand); }
+.strength button:disabled{ opacity:.5; cursor:not-allowed; }
+.strength span{ font-size:15px; color:var(--muted); }
+.chips{ display:flex; gap:8px; flex-wrap:wrap; }
+.chip{ padding:8px 14px; border-radius:999px; background:var(--soft); border:2px solid var(--line); font-weight:700; min-width:132px; text-align:center; }
+.chip.on{ border-color:var(--brand); }
+
+.missions{ list-style:none; margin:18px 0 0; padding:0; display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+@media (max-width:700px){ .missions{ grid-template-columns:repeat(2,1fr); } .duo{ gap:10px; } }
+.missions li{
+  display:flex; align-items:center; gap:10px; padding:12px; border-radius:14px; border:2px solid var(--line); background:var(--surface); font-weight:700;
+}
+.missions .mk{ flex:none; display:grid; place-items:center; width:30px; height:30px; border-radius:50%; border:2px solid var(--line); font-size:16px; }
+.missions li.done{ border-color:var(--good); background:var(--good-bg); }
+.missions li.done .mk{ background:var(--good); border-color:var(--good); color:#fff; }
+
+.fb{ margin-top:14px; padding:14px 16px; border-radius:14px; font-weight:700; }
+.fb:empty{ display:none; }
+.fb.good{ background:var(--good-bg); color:var(--good); border:2px solid var(--good); }
+.fb.bad{ background:var(--bad-bg); color:var(--bad); border:2px solid var(--bad); }
+.fb.warn{ background:var(--warn-bg); color:var(--warn); border:2px solid var(--warn); }
+.fb.good p,.fb.bad p{ margin:4px 0 0; font-weight:500; color:var(--ink); }
+
+/* compare */
+.scalebox{ margin-top:16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+.scalebox .tray{ flex:1 1 320px; }
+.fills{ margin-top:18px; display:grid; gap:12px; }
+.fill{ margin:0; font-size:20px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.opts{ display:inline-flex; gap:6px; }
+.opts button{
+  font:inherit; font-weight:800; min-width:70px; min-height:46px; border-radius:12px; cursor:pointer;
+  border:2px solid var(--brand); background:var(--surface); color:var(--brand);
+}
+.opts button[aria-pressed="true"]{ background:var(--brand); color:var(--brand-ink); }
+
+/* quiz */
+.q{ margin-top:18px; padding:16px; border-radius:18px; border:2px solid var(--line); }
+.q h3{ margin:0 0 10px; font-size:19px; }
+.q .tray{ padding:14px 12px; border-radius:20px; }
+.choices{ display:flex; gap:10px; flex-wrap:wrap; }
+.choices .btn{ flex:1 1 170px; background:var(--surface); color:var(--brand); }
+.choices .btn.picked{ background:var(--brand); color:var(--brand-ink); }
+.selfeval{ margin-top:18px; display:grid; gap:10px; }
+.se{ display:flex; align-items:center; gap:12px; justify-content:space-between; flex-wrap:wrap; padding:12px 14px; border-radius:14px; border:2px solid var(--line); }
+.se p{ margin:0; flex:1 1 280px; font-size:16px; }
+.faces{ display:flex; gap:6px; }
+.faces button{ font:inherit; font-size:26px; width:52px; height:52px; border-radius:50%; cursor:pointer; border:2px solid var(--line); background:var(--surface); }
+.faces button[aria-pressed="true"]{ border-color:var(--brand); background:var(--soft); }
+.zepbox{ margin-top:18px; padding:16px; border-radius:18px; background:var(--soft); border:2px solid var(--brand); }
+.zepbox p{ margin:0 0 10px; }
+.zepbox a{ text-decoration:none; display:inline-flex; align-items:center; }
+
+.audiowarn{ margin-top:12px; }
+
+@media (prefers-reduced-motion: reduce){ .sound.pulse{ animation:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="logo" id="logo" aria-hidden="true"></div>
+    <div>
+      <h1>소리 실험실</h1>
+      <p class="sub">3학년 과학 5차시. 높은 소리와 낮은 소리를 만들어 비교해요.</p>
+    </div>
+    <a id="zepTop" class="btn ghost zep" hidden target="_blank" rel="noopener noreferrer">AI 도우미 퀴즈 열기</a>
+  </header>
+
+  <div class="fb warn audiowarn" id="audioWarn" hidden role="alert">이 기기에서는 소리를 낼 수 없어요. 다른 브라우저나 기기에서 열어 주세요.</div>
+
+  <nav class="tabs" role="tablist" aria-label="수업 순서">
+    <button class="tab" role="tab" id="t0" aria-controls="p0" aria-selected="true"><b>1 소리 듣고 생각하기</b><small>도입</small></button>
+    <button class="tab" role="tab" id="t1" aria-controls="p1" aria-selected="false"><b>2 음판 비교하기</b><small>활동 1</small></button>
+    <button class="tab" role="tab" id="t2" aria-controls="p2" aria-selected="false"><b>3 소리 만들기</b><small>활동 2</small></button>
+    <button class="tab" role="tab" id="t3" aria-controls="p3" aria-selected="false"><b>4 정리하기</b><small>정리</small></button>
+  </nav>
+
+  <main>
+    <!-- 도입 -->
+    <section class="panel" id="p0" role="tabpanel" aria-labelledby="t0">
+      <h2>두 소리를 듣고 생각해 보세요</h2>
+      <p class="lead">1번 소리와 2번 소리를 눌러 들어 보세요. 어느 소리가 더 크게 들리나요?</p>
+      <div class="duo">
+        <button class="sound" id="snd1" type="button"><span class="play" aria-hidden="true">▶</span><span>1번 소리</span></button>
+        <button class="sound" id="snd2" type="button"><span class="play" aria-hidden="true">▶</span><span>2번 소리</span></button>
+      </div>
+      <p class="hint" id="voteHint" role="status">두 소리를 모두 들으면 투표할 수 있어요.</p>
+      <div class="votes" id="voteBtns">
+        <button class="btn ghost" type="button" data-k="1" disabled>1번이 더 커요</button>
+        <button class="btn ghost" type="button" data-k="2" disabled>2번이 더 커요</button>
+        <button class="btn ghost" type="button" data-k="same" disabled>똑같아요</button>
+      </div>
+      
+      <div class="row"><button class="btn" id="revealBtn" type="button" disabled>정답 공개</button></div>
+      <div class="reveal" id="reveal" hidden aria-live="polite">
+        <p id="revealText"></p>
+        <div class="problem">학습 문제: 높은 소리와 낮은 소리를 비교하고, 높낮이가 다른 소리를 내 봅시다.</div>
+        <div class="row"><button class="btn" id="toCompare" type="button">음판 비교하러 가기</button></div>
+      </div>
+    </section>
+
+    <!-- 활동 1 -->
+    <section class="panel" id="p1" role="tabpanel" aria-labelledby="t1" hidden>
+      <h2>짧은 음판과 긴 음판을 눌러 보세요</h2>
+      <p class="lead">같은 세기로 눌러서 소리가 어떻게 다른지 들어 보고, 빈칸을 채워 보세요.</p>
+      <div class="tray"><div class="bars" id="cmpBars"></div></div>
+      <p class="note">누르는 세기는 ‘보통’으로 고정했어요. 음판을 눌러 보세요.</p>
+
+      <div class="scalebox">
+        <div class="tray small"><div class="bars" id="scaleBars"></div></div>
+        <button class="btn ghost" id="scaleBtn" type="button">도레미 순서로 듣기</button>
+      </div>
+
+      <div class="fills">
+        <p class="fill">짧은 음판의 ‘도’를 누르면
+          <span class="opts" data-q="short"><button type="button" data-v="high" aria-pressed="false">높은</button><button type="button" data-v="low" aria-pressed="false">낮은</button></span>
+          소리가 나요.</p>
+        <p class="fill">긴 음판의 ‘도’를 누르면
+          <span class="opts" data-q="long"><button type="button" data-v="high" aria-pressed="false">높은</button><button type="button" data-v="low" aria-pressed="false">낮은</button></span>
+          소리가 나요.</p>
+      </div>
+      <div class="row"><button class="btn" id="cmpCheck" type="button">확인하기</button></div>
+      <div class="fb" id="cmpFb" role="status"></div>
+      <div class="row" id="cmpNext" hidden><button class="btn" id="toMake" type="button">다음 활동으로</button></div>
+    </section>
+
+    <!-- 활동 2 -->
+    <section class="panel" id="p2" role="tabpanel" aria-labelledby="t2" hidden>
+      <h2>높은 소리와 낮은 소리를 만들어 보세요</h2>
+      <p class="lead">먼저 같은 세기로 높은 소리와 낮은 소리를 만들어 보세요. 두 소리를 모두 만들면 누르는 세기도 바꿔 볼 수 있어요.</p>
+      <div class="tray"><div class="bars" id="mkBars"></div></div>
+      <div class="legend"><span>길다</span><span class="line"></span><span>짧다</span></div>
+
+      <div class="ctrl">
+        <div>
+          <div class="lab">누르는 세기</div>
+          <div class="strength" id="strength" role="radiogroup" aria-label="누르는 세기"></div>
+          <p class="note" id="strengthLabel">처음에는 세기를 ‘보통’으로 고정했어요.</p>
+        </div>
+        <div>
+          <div class="lab">내가 낸 소리</div>
+          <div class="chips" aria-live="polite">
+            <span class="chip" id="chipPitch">높낮이: 아직 없어요</span>
+            <span class="chip" id="chipLoud">세기: 아직 없어요</span>
+          </div>
+        </div>
+      </div>
+
+      <ul class="missions" id="missions"></ul>
+      <div class="fb good" id="mkDone" hidden role="status"></div>
+      <div class="row" id="mkNext" hidden><button class="btn" id="toWrap" type="button">정리하러 가기</button></div>
+    </section>
+
+    <!-- 정리 -->
+    <section class="panel" id="p3" role="tabpanel" aria-labelledby="t3" hidden>
+      <h2>배운 것을 확인해 보세요</h2>
+      <p class="lead">세 문제를 풀어 보고, 오늘 내 생각이 어떻게 바뀌었는지 되돌아봐요.</p>
+
+      <div class="q">
+        <h3>문제 1. 가장 높은 소리가 나는 음판을 눌러 보세요.</h3>
+        <div class="tray"><div class="bars" id="q1Bars"></div></div>
+        <div class="fb" id="q1Fb" role="status"></div>
+      </div>
+
+      <div class="q">
+        <h3>문제 2. 높은 소리를 내려면 어느 음판을 눌러야 할까요?</h3>
+        <div class="choices" id="q2">
+          <button class="btn" type="button" data-v="short">짧은 음판을 눌러요</button>
+          <button class="btn" type="button" data-v="long">긴 음판을 눌러요</button>
+        </div>
+        <div class="fb" id="q2Fb" role="status"></div>
+      </div>
+
+      <div class="q">
+        <h3>문제 3. 친구가 말했어요. “높은 소리는 큰 소리야.” 이 말은 어떨까요?</h3>
+        <div class="choices" id="q3">
+          <button class="btn" type="button" data-v="yes">맞아요</button>
+          <button class="btn" type="button" data-v="no">틀려요</button>
+        </div>
+        <div class="fb" id="q3Fb" role="status"></div>
+      </div>
+
+      <div class="zepbox" id="zepBox" hidden>
+        <p><b>AI 도우미와 이야기해 보세요.</b> 퀴즈를 풀고 모르는 것이나 헷갈리는 것을 도우미에게 물어봐요.</p>
+        <a id="zepLink" class="btn" target="_blank" rel="noopener noreferrer">AI 도우미 퀴즈 열기</a>
+      </div>
+
+      <div class="selfeval" id="selfeval"></div>
+      <div class="row"><button class="btn ghost" id="restart" type="button">처음부터 다시 하기</button></div>
+    </section>
+  </main>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- data ---------- */
+var NOTES=[
+  {n:"도",f:523.25},{n:"레",f:587.33},{n:"미",f:659.25},{n:"파",f:698.46},
+  {n:"솔",f:783.99},{n:"라",f:880.00},{n:"시",f:987.77},{n:"도",f:1046.50}
+];
+var COLORS=[
+  ["#D63B45","#FFFFFF"],["#F2802C","#12324A"],["#F2C12E","#12324A"],["#6CC24A","#12324A"],
+  ["#2CB6A0","#12324A"],["#2F6FD0","#FFFFFF"],["#5B50D6","#FFFFFF"],["#8E44C4","#FFFFFF"]
+];
+var AMP=[0.07,0.18,0.40];
+var STR_LABEL=["작게","보통","크게"];
+var NORMAL=2; // 보통 세기
+var MISSIONS=[
+  {k:"H",t:"같은 세기로 높은 소리 내기"},{k:"L",t:"같은 세기로 낮은 소리 내기"},
+  {k:"HS",t:"높은 소리를 작게 내기"},{k:"LB",t:"낮은 소리를 크게 내기"}
+];
+
+/* ---------- state ---------- */
+var ZEP_URL="https://quiz.zep.us/play/E9pPLO";
+var S={vol:0.6,highDb:0,strength:2,zep:ZEP_URL};
+var V,C,M,Q;
+
+var store={
+  get:function(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set:function(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+function $(id){ return document.getElementById(id); }
+function validUrl(s){ try{ var u=new URL(s); return u.protocol==="https:"; }catch(e){ return false; } }
+function pitchClass(i){ return i<=2?"low":(i>=5?"high":"mid"); }
+function loudClass(s){ return s<=1?"small":(s>=3?"big":"mid"); }
+function shuffleHigh(){ return Math.random()<0.5?1:2; }
+
+/* ---------- audio ---------- */
+var ctx=null, master=null;
+function ensureAudio(){
+  if(!ctx){
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC){ $("audioWarn").hidden=false; return false; }
+    try{
+      ctx=new AC();
+      var comp=ctx.createDynamicsCompressor();
+      master=ctx.createGain(); master.gain.value=S.vol;
+      master.connect(comp); comp.connect(ctx.destination);
+    }catch(e){ $("audioWarn").hidden=false; return false; }
+  }
+  if(ctx.state==="suspended"&&ctx.resume){ ctx.resume(); }
+  return true;
+}
+document.addEventListener("pointerup",function(){ ensureAudio(); },{passive:true});
+document.addEventListener("keydown",function(){ ensureAudio(); });
+
+function strike(i,strength,extraDb){
+  if(!ensureAudio()) return;
+  var f=NOTES[i].f;
+  var amp=AMP[strength-1]*Math.pow(10,(extraDb||0)/20);
+  var t=ctx.currentTime;
+  var g=ctx.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(amp,t+0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+1.6);
+  g.connect(master);
+  [[1,1],[2.76,0.12],[5.4,0.04]].forEach(function(p){
+    var o=ctx.createOscillator(); o.type="sine"; o.frequency.value=f*p[0];
+    var og=ctx.createGain(); og.gain.value=p[1];
+    o.connect(og); og.connect(g);
+    o.start(t); o.stop(t+1.7);
+  });
+}
+
+/* ---------- vibration animation ---------- */
+var anims=new WeakMap();
+function vibrate(el,strength,i){
+  var prev=anims.get(el); if(prev) cancelAnimationFrame(prev);
+  var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var sv=[1.5,3,5][strength-1]||3;
+  var amp=(1+sv*1.3)*(reduce?0.3:1);
+  var vf=NOTES[i].f/45;
+  var glow=sv*5+6;
+  var col=COLORS[i][0];
+  var t0=performance.now();
+  function step(now){
+    var t=(now-t0)/1000, d=Math.exp(-t*3.2);
+    if(t>1.4||d<0.02){ el.style.transform=""; el.style.boxShadow=""; anims.delete(el); return; }
+    el.style.transform="translateX("+(amp*d*Math.sin(2*Math.PI*vf*t)).toFixed(2)+"px)";
+    el.style.boxShadow="0 0 "+(glow*d).toFixed(1)+"px "+(3*d).toFixed(1)+"px "+col+", inset 0 -6px 0 rgba(0,0,0,.16), inset 0 3px 0 rgba(255,255,255,.3)";
+    anims.set(el,requestAnimationFrame(step));
+  }
+  anims.set(el,requestAnimationFrame(step));
+}
+
+/* ---------- bars ---------- */
+function buildBars(host,idxs,opt){
+  host.innerHTML="";
+  idxs.forEach(function(i){
+    var slot=document.createElement("div"); slot.className="slot"+(opt.wide?" wide":"");
+    var b=document.createElement("button");
+    b.type="button"; b.className="bar"; b.dataset.i=i;
+    var h=opt.maxH-(opt.maxH-opt.minH)*(i/7);
+    b.style.setProperty("--h",h+"px");
+    b.style.setProperty("--bg-bar",COLORS[i][0]);
+    b.style.setProperty("--fg-bar",COLORS[i][1]);
+    b.setAttribute("aria-label",(i<=2?"긴":(i>=5?"짧은":"중간 길이"))+" 음판, "+NOTES[i].n);
+    b.innerHTML='<span class="screw"></span><span>'+(opt.showName?NOTES[i].n:"")+'</span><span class="screw"></span>';
+    b.addEventListener("pointerdown",function(e){ e.preventDefault(); opt.onPress(i,b); });
+    b.addEventListener("keydown",function(e){ if(e.key===" "||e.key==="Enter"){ e.preventDefault(); opt.onPress(i,b); } });
+    slot.appendChild(b);
+    if(opt.caption){ var c=document.createElement("span"); c.className="cap"; c.textContent=opt.caption(i); slot.appendChild(c); }
+    host.appendChild(slot);
+  });
+}
+function barEl(host,i){ return host.querySelector('.bar[data-i="'+i+'"]'); }
+
+/* ---------- tabs ---------- */
+var TABS=["t0","t1","t2","t3"], PANELS=["p0","p1","p2","p3"];
+function go(n){
+  TABS.forEach(function(id,k){
+    var on=(k===n);
+    $(id).setAttribute("aria-selected",on?"true":"false");
+    $(PANELS[k]).hidden=!on;
+  });
+  $("zepTop").hidden=(n!==3);
+  window.scrollTo({top:0,behavior:"auto"});
+}
+TABS.forEach(function(id,k){ $(id).addEventListener("click",function(){ go(k); }); });
+
+/* ---------- logo ---------- */
+(function(){
+  var lg=$("logo");
+  for(var i=0;i<8;i++){
+    var e=document.createElement("i");
+    e.style.height=(42-i*3.4)+"px"; e.style.background=COLORS[i][0];
+    lg.appendChild(e);
+  }
+})();
+
+/* ---------- 도입: 소리 투표 ---------- */
+function initVote(){
+  V={high:shuffleHigh(),picked:false,heard:{"1":false,"2":false},revealed:false};
+  $("snd1").classList.remove("heard"); $("snd2").classList.remove("heard");
+  $("reveal").hidden=true; $("revealBtn").disabled=true;
+  $("voteHint").textContent="두 소리를 모두 들으면 투표할 수 있어요.";
+  Array.prototype.forEach.call($("voteBtns").children,function(b){ b.disabled=true; });
+}
+function playVote(n){
+  var isHigh=(V.high===n);
+  var idx=isHigh?7:0;
+  strike(idx,NORMAL,isHigh?S.highDb:0);
+  var btn=$("snd"+n);
+  btn.classList.remove("pulse"); void btn.offsetWidth; btn.classList.add("pulse"); btn.classList.add("heard");
+  V.heard[n]=true;
+  if(V.heard["1"]&&V.heard["2"]){
+    $("voteHint").textContent="어느 소리가 더 크게 들렸는지 투표해 보세요.";
+    Array.prototype.forEach.call($("voteBtns").children,function(b){ b.disabled=false; });
+  }
+}
+$("snd1").addEventListener("click",function(){ playVote(1); });
+$("snd2").addEventListener("click",function(){ playVote(2); });
+$("voteBtns").addEventListener("click",function(e){
+  var b=e.target.closest("button"); if(!b||b.disabled) return;
+  V.picked=true; $("revealBtn").disabled=false;
+  $("voteHint").textContent="투표했어요. 친구들은 어떻게 생각하는지 이야기해 보세요.";
+});
+$("revealBtn").addEventListener("click",function(){
+  var low=3-V.high;
+  var rt=$("revealText"); rt.textContent="";
+  rt.appendChild(document.createTextNode("두 소리의 세기는 같게 만들었어요. "+V.high+"번은 높은 소리, "+low+"번은 낮은 소리였어요. 소리의 높고 낮은 정도를 소리의 ‘높낮이’라고 해요. 높은 소리가 더 크게 들린 친구도 있나요? "));
+  var bq=document.createElement("strong"); bq.style.fontWeight="800"; bq.textContent="소리가 높으면 큰 소리일까요?"; rt.appendChild(bq);
+  rt.appendChild(document.createTextNode(" (기기 스피커에 따라 다르게 들릴 수 있어요.)"));
+  $("reveal").hidden=false; V.revealed=true;
+});
+$("toCompare").addEventListener("click",function(){ go(1); });
+
+/* ---------- 활동 1: 음판 비교 ---------- */
+var scaleTimer=null;
+function initCompare(){
+  C={heard:{long:false,short:false},pick:{long:null,short:null}};
+  buildBars($("cmpBars"),[0,7],{
+    maxH:240,minH:130,wide:true,showName:false,
+    caption:function(i){ return i===0?"긴 음판의 ‘도’":"짧은 음판의 ‘도’"; },
+    onPress:function(i,b){
+      strike(i,NORMAL); vibrate(b,NORMAL,i);
+      if(i===0) C.heard.long=true; else C.heard.short=true;
+    }
+  });
+  buildBars($("scaleBars"),[0,1,2,3,4,5,6,7],{
+    maxH:96,minH:52,showName:true,
+    onPress:function(i,b){ strike(i,NORMAL); vibrate(b,NORMAL,i); }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("#p1 .opts button"),function(b){ b.setAttribute("aria-pressed","false"); });
+  $("cmpFb").className="fb"; $("cmpFb").innerHTML=""; $("cmpNext").hidden=true;
+  if(scaleTimer){ clearTimeout(scaleTimer); scaleTimer=null; } $("scaleBtn").disabled=false;
+}
+$("scaleBtn").addEventListener("click",function(){
+  var k=0, btn=$("scaleBtn"); btn.disabled=true;
+  (function next(){
+    if(k>7){ btn.disabled=false; scaleTimer=null; return; }
+    strike(k,NORMAL); var el=barEl($("scaleBars"),k); if(el) vibrate(el,NORMAL,k);
+    k++; scaleTimer=setTimeout(next,420);
+  })();
+});
+document.querySelectorAll("#p1 .opts").forEach(function(group){
+  group.addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    Array.prototype.forEach.call(group.children,function(x){ x.setAttribute("aria-pressed",x===b?"true":"false"); });
+    C.pick[group.dataset.q]=b.dataset.v;
+  });
+});
+$("cmpCheck").addEventListener("click",function(){
+  var fb=$("cmpFb");
+  if(!(C.heard.long&&C.heard.short)){ fb.className="fb warn"; fb.textContent="먼저 짧은 음판과 긴 음판을 눌러서 소리를 들어 보세요."; return; }
+  if(!C.pick.long||!C.pick.short){ fb.className="fb warn"; fb.textContent="두 문장의 빈칸을 모두 골라 주세요."; return; }
+  var okL=(C.pick.long==="low"), okS=(C.pick.short==="high");
+  if(okL&&okS){
+    fb.className="fb good";
+    fb.innerHTML="맞아요! 음판이 길면 낮은 소리, 음판이 짧으면 높은 소리가 나요.<p>도레미 순서로 들으면 음판이 짧아질수록 소리가 점점 높아져요.</p>";
+    $("cmpNext").hidden=false;
+  }else{
+    fb.className="fb bad";
+    var which=(!okL&&!okS)?"두 문장 모두":(!okS?"첫 번째 문장":"두 번째 문장");
+    fb.innerHTML="다시 생각해 보세요.<p>"+which+"을 다시 확인해 봐요. 긴 음판과 짧은 음판을 번갈아 눌러 소리를 비교해 보세요.</p>";
+  }
+});
+$("toMake").addEventListener("click",function(){ go(2); });
+
+/* ---------- 활동 2: 소리 만들기 ---------- */
+function initMake(){
+  M={done:{H:false,L:false,HS:false,LB:false}};
+  S.strength=NORMAL;
+  buildBars($("mkBars"),[0,1,2,3,4,5,6,7],{
+    maxH:230,minH:124,showName:true,
+    onPress:function(i,b){
+      strike(i,S.strength); vibrate(b,S.strength,i);
+      var p=pitchClass(i), l=loudClass(S.strength);
+      $("chipPitch").textContent="높낮이: "+(p==="high"?"높은 소리":(p==="low"?"낮은 소리":"중간 소리"));
+      $("chipLoud").textContent="세기: "+(l==="big"?"큰 소리":(l==="small"?"작은 소리":"보통 소리"));
+      $("chipPitch").classList.add("on"); $("chipLoud").classList.add("on");
+      var key=null, unlocked=M.done.H&&M.done.L;
+      if(!unlocked){
+        if(S.strength===NORMAL){ if(p==="high") key="H"; if(p==="low") key="L"; }
+      }else{
+        if(p==="high"&&l==="small") key="HS";
+        if(p==="low"&&l==="big") key="LB";
+      }
+      if(key&&!M.done[key]){ M.done[key]=true; renderMissions(); if(M.done.H&&M.done.L) renderStrength(); }
+    }
+  });
+  $("chipPitch").textContent="높낮이: 아직 없어요"; $("chipLoud").textContent="세기: 아직 없어요";
+  $("chipPitch").classList.remove("on"); $("chipLoud").classList.remove("on");
+  renderStrength(); renderMissions();
+}
+function renderStrength(){
+  var host=$("strength"); host.innerHTML="";
+  var locked=!(M.done.H&&M.done.L);
+  if(locked) S.strength=NORMAL;
+  var s1=document.createElement("span"); s1.textContent="작게"; host.appendChild(s1);
+  for(var n=1;n<=3;n++){
+    (function(n){
+      var b=document.createElement("button"); b.type="button"; b.setAttribute("role","radio");
+      b.setAttribute("aria-checked",n===S.strength?"true":"false");
+      b.setAttribute("aria-label","세기 "+n+"단계, "+STR_LABEL[n-1]);
+      b.disabled=locked;
+      var d=document.createElement("i"); var sz=12+n*8; d.style.width=sz+"px"; d.style.height=sz+"px"; b.appendChild(d);
+      b.addEventListener("click",function(){ S.strength=n; renderStrength(); });
+      host.appendChild(b);
+    })(n);
+  }
+  var s2=document.createElement("span"); s2.textContent="크게"; host.appendChild(s2);
+  $("strengthLabel").textContent=locked?"처음에는 세기를 ‘보통’으로 고정했어요. 같은 세기로 높은 소리와 낮은 소리를 모두 내면 세기를 바꿀 수 있어요.":"지금 세기: "+STR_LABEL[S.strength-1]+(M.done.HS&&M.done.LB?"":". 이제 세기를 바꿔 높은 소리는 작게, 낮은 소리는 크게 내 보세요.");
+}
+function renderMissions(){
+  var ul=$("missions");
+  ul.innerHTML=MISSIONS.map(function(m){
+    var d=M.done[m.k];
+    return '<li class="'+(d?"done":"")+'"><span class="mk" aria-hidden="true">'+(d?"✓":"")+'</span><span>'+m.t+(d?" 완성":"")+'</span></li>';
+  }).join("");
+  var all=MISSIONS.every(function(m){ return M.done[m.k]; });
+  var done=$("mkDone");
+  if(all){
+    done.hidden=false;
+    done.textContent="네 가지를 모두 해냈어요! 같은 세기로 높은 소리와 낮은 소리를 만들었고, 높은 소리도 작게, 낮은 소리도 크게 낼 수 있었어요. 높낮이와 세기는 서로 다른 성질이에요.";
+    $("mkNext").hidden=false;
+  }else{ done.hidden=true; $("mkNext").hidden=true; }
+}
+$("toWrap").addEventListener("click",function(){ go(3); });
+
+/* ---------- 정리 ---------- */
+function initWrap(){
+  Q={q1:false};
+  buildBars($("q1Bars"),[0,1,2,3,4,5,6,7],{
+    maxH:110,minH:62,showName:false,
+    onPress:function(i,b){
+      strike(i,NORMAL); vibrate(b,NORMAL,i);
+      var fb=$("q1Fb");
+      if(i===7){ fb.className="fb good"; fb.innerHTML="맞아요!<p>가장 짧은 음판이 가장 높은 소리를 내요.</p>"; }
+      else{ fb.className="fb bad"; fb.innerHTML="아쉬워요.<p>음판의 길이를 비교해 보고 다시 눌러 보세요.</p>"; }
+    }
+  });
+  $("q1Fb").className="fb"; $("q1Fb").innerHTML="";
+  ["q2","q3"].forEach(function(id){
+    Array.prototype.forEach.call($(id).children,function(b){ b.classList.remove("picked"); });
+    $(id+"Fb").className="fb"; $(id+"Fb").innerHTML="";
+  });
+  renderSelfEval();
+}
+function answer(id,correct,goodMsg,badMsg){
+  $(id).addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    Array.prototype.forEach.call($(id).children,function(x){ x.classList.toggle("picked",x===b); });
+    var fb=$(id+"Fb");
+    if(b.dataset.v===correct){ fb.className="fb good"; fb.innerHTML=goodMsg; }
+    else{ fb.className="fb bad"; fb.innerHTML=badMsg; }
+  });
+}
+answer("q2","short","맞아요!<p>음판의 길이가 짧으면 높은 소리가 나요. 길면 낮은 소리가 나요.</p>","다시 생각해 보세요.<p>활동 1에서 짧은 음판과 긴 음판의 소리를 비교한 것을 떠올려 보세요.</p>");
+answer("q3","no","맞아요, 틀린 말이에요!<p>높은 소리도 작게 낼 수 있고, 낮은 소리도 크게 낼 수 있어요. 높낮이와 세기는 서로 달라요.</p>","다시 생각해 보세요.<p>활동 2에서 ‘높은 소리를 작게’, ‘낮은 소리를 크게’ 낸 것을 떠올려 보세요.</p>");
+
+function renderSelfEval(){
+  var items=[
+    ["지식·이해","소리의 높낮이를 이해하고, 소리의 높낮이를 구분할 수 있나요?"],
+    ["과정·기능","높은 소리와 낮은 소리를 비교하고, 높낮이가 다른 소리를 내며 관찰할 수 있나요?"],
+    ["가치·태도","일상생활에서 들을 수 있는 높은 소리와 낮은 소리에 관심을 가졌나요?"]
+  ];
+  var host=$("selfeval");
+  host.innerHTML=items.map(function(it,k){
+    return '<div class="se" data-k="'+k+'"><p><b>'+it[0]+'</b> '+it[1]+'</p><div class="faces">'
+      +'<button type="button" aria-pressed="false" aria-label="매우 그래요">😀</button>'
+      +'<button type="button" aria-pressed="false" aria-label="보통이에요">🙂</button>'
+      +'<button type="button" aria-pressed="false" aria-label="더 노력할래요">😐</button></div></div>';
+  }).join("");
+}
+$("selfeval").addEventListener("click",function(e){
+  var b=e.target.closest(".faces button"); if(!b) return;
+  Array.prototype.forEach.call(b.parentNode.children,function(x){ x.setAttribute("aria-pressed",x===b?"true":"false"); });
+});
+
+/* ---------- AI 도우미 퀴즈 링크 (고정) ---------- */
+function renderZep(){
+  $("zepTop").href=ZEP_URL; $("zepLink").href=ZEP_URL;
+  $("zepBox").hidden=false;
+}
+
+/* ---------- 처음부터 ---------- */
+function resetAll(){ initVote(); initCompare(); initMake(); initWrap(); go(0); }
+$("restart").addEventListener("click",resetAll);
+
+/* ---------- start ---------- */
+renderZep();
+initVote(); initCompare(); initMake(); initWrap();
+})();
+</script>
+</body>
+</html>
